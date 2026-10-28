@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eğik Atış ve Hava Direnci Simülasyonu - Adem Kaleli</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #0b0e14;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: row;
+        }
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            background: radial-gradient(circle at 50% 30%, #151d2a 0%, #0b0e14 100%);
+            touch-action: none;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* Öğrenci Künye Rozeti */
+        #student-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 12px 16px;
+            border-radius: 10px;
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        #student-badge .name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: 0.5px;
+        }
+        #student-badge .number {
+            font-size: 0.85rem;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+        #student-badge .title {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        /* Sidebar Kontrol Paneli */
+        #sidebar {
+            width: 380px;
+            background: rgba(18, 24, 38, 0.96);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            overflow-y: auto;
+        }
+        h1 {
+            font-size: 1.15rem;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #0284c7;
+            padding-bottom: 6px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #1e293b;
+        }
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+        .control-label span.val {
+            color: #38bdf8;
+        }
+        input[type=range] {
+            width: 100%;
+            accent-color: #0284c7;
+            cursor: pointer;
+        }
+        select {
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            flex: 1;
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:hover {
+            background: #0369a1;
+            transform: translateY(-1px);
+        }
+        .btn.reset {
+            background: #334155;
+        }
+        .btn.reset:hover {
+            background: #475569;
+        }
+
+        /* Canlı Sonuç Kartı */
+        .results-card {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border: 1px solid #0284c7;
+            border-radius: 10px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .res-box {
+            display: flex;
+            flex-direction: column;
+        }
+        .res-box .lbl {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+        .res-box .val {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #canvas-container { height: 50vh; width: 100%; }
+            #sidebar { width: 100%; height: 50vh; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); padding: 12px; }
+            #student-badge { top: 10px; left: 10px; padding: 8px 12px; }
+            #student-badge .name { font-size: 0.8rem; }
+            #student-badge .number { font-size: 0.75rem; }
+            #student-badge .title { font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <!-- İsim & Ödev Etiketi -->
+        <div id="student-badge">
+            <div class="name">Adem Kaleli</div>
+            <div class="number">2615501083</div>
+            <div class="title">FİZİK I - EĞİK ATIŞ & HAVA DİRENCİ SİMÜLASYONU</div>
+        </div>
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <div id="sidebar">
+        <h1>Atış Parametreleri</h1>
+
+        <div class="btn-group">
+            <button class="btn" id="fireBtn" onclick="fireProjectile()">🚀 Ateşle</button>
+            <button class="btn reset" onclick="clearCanvas()">🧹 Temizle</button>
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Ortam / Yer Çekimi:</div>
+            <select id="presetSelect" onchange="applyPreset()">
+                <option value="earth">🌍 Dünya (g = 9.81 m/s²)</option>
+                <option value="moon">🌙 Ay (g = 1.62 m/s²)</option>
+                <option value="mars">🔴 Mars (g = 3.71 m/s²)</option>
+                <option value="jupiter">🪐 Jüpiter (g = 24.79 m/s²)</option>
+                <option value="vacuum">🌌 Vakum / Sürtünmesiz Uzay</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Atış Açısı (&theta;): <span class="val" id="angleVal">45°</span></div>
+            <input type="range" id="angleSlider" min="5" max="85" value="45" oninput="updateValues()">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">İlk Hız (v<sub>0</sub>): <span class="val" id="velVal">50 m/s</span></div>
+            <input type="range" id="velSlider" min="10" max="150" value="50" oninput="updateValues()">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Rüzgar Hızı (v<sub>rüzgar</sub>): <span class="val" id="windVal">0 m/s</span></div>
+            <input type="range" id="windSlider" min="-30" max="30" value="0" oninput="updateValues()">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Cisim Kütlesi (m): <span class="val" id="massVal">2.0 kg</span></div>
+            <input type="range" id="massSlider" min="0.1" max="20" step="0.1" value="2.0" oninput="updateValues()">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Cisim Tipi (Sürtünme C<sub>d</sub>):</div>
+            <select id="dragSelect" onchange="updateValues()">
+                <option value="0.47">⚽ Küre / Gülle (Cd = 0.47)</option>
+                <option value="0.295">🚀 Mermi / Aerodinamik (Cd = 0.295)</option>
+                <option value="1.05">📦 Küp / Kutusal (Cd = 1.05)</option>
+                <option value="0.0">✨ Sürtünmesiz (Cd = 0.00)</option>
+            </select>
+        </div>
+
+        <div class="results-card">
+            <div class="res-box">
+                <span class="lbl">Maks Yükseklik (H<sub>max</sub>)</span>
+                <span class="val" id="resHmax">0.00 m</span>
+            </div>
+            <div class="res-box">
+                <span class="lbl">Menzil (R)</span>
+                <span class="val" id="resRange">0.00 m</span>
+            </div>
+            <div class="res-box">
+                <span class="lbl">Uçuş Süresi (t<sub>uçuş</sub>)</span>
+                <span class="val" id="resTime">0.00 s</span>
+            </div>
+            <div class="res-box">
+                <span class="lbl">Çarpma Hızı (v<sub>son</sub>)</span>
+                <span class="val" id="resVfinal">0.00 m/s</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            drawScene();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Simulation parameters
+        let g = 9.81;
+        let rho = 1.225; // Air density kg/m^3
+        let trajectories = [];
+        let activeProjectiles = [];
+
+        const colors = ['#38bdf8', '#f43f5e', '#10b981', '#fbbf24', '#a855f7', '#ec4899'];
+
+        function updateValues() {
+            document.getElementById('angleVal').innerText = document.getElementById('angleSlider').value + '°';
+            document.getElementById('velVal').innerText = document.getElementById('velSlider').value + ' m/s';
+            
+            const w = parseFloat(document.getElementById('windSlider').value);
+            document.getElementById('windVal').innerText = (w > 0 ? '+' : '') + w + ' m/s ' + (w > 0 ? '(Arka)' : w < 0 ? '(Karşı)' : '');
+            
+            document.getElementById('massVal').innerText = parseFloat(document.getElementById('massSlider').value).toFixed(1) + ' kg';
+            drawScene();
+        }
+
+        function applyPreset() {
+            const preset = document.getElementById('presetSelect').value;
+            if (preset === 'earth') { g = 9.81; rho = 1.225; }
+            else if (preset === 'moon') { g = 1.62; rho = 0.000; }
+            else if (preset === 'mars') { g = 3.71; rho = 0.020; }
+            else if (preset === 'jupiter') { g = 24.79; rho = 0.500; }
+            else if (preset === 'vacuum') { g = 9.81; rho = 0.000; }
+            drawScene();
+        }
+
+        function fireProjectile() {
+            const angle = parseFloat(document.getElementById('angleSlider').value) * (Math.PI / 180);
+            const v0 = parseFloat(document.getElementById('velSlider').value);
+            const wind = parseFloat(document.getElementById('windSlider').value);
+            const mass = parseFloat(document.getElementById('massSlider').value);
+            const Cd = parseFloat(document.getElementById('dragSelect').value);
+            const radius = 0.15; // 15 cm radius sphere approx
+            const area = Math.PI * radius * radius;
+
+            const projColor = colors[trajectories.length % colors.length];
+
+            const projectile = {
+                x: 0,
+                y: 0,
+                vx: v0 * Math.cos(angle),
+                vy: v0 * Math.sin(angle),
+                mass: mass,
+                Cd: Cd,
+                area: area,
+                wind: wind,
+                color: projColor,
+                path: [{x: 0, y: 0}],
+                time: 0,
+                maxH: 0,
+                finished: false
+            };
+
+            activeProjectiles.push(projectile);
+        }
+
+        function clearCanvas() {
+            trajectories = [];
+            activeProjectiles = [];
+            document.getElementById('resHmax').innerText = '0.00 m';
+            document.getElementById('resRange').innerText = '0.00 m';
+            document.getElementById('resTime').innerText = '0.00 s';
+            document.getElementById('resVfinal').innerText = '0.00 m/s';
+            drawScene();
+        }
+
+        // Coordinate scaling
+        const originX = 60;
+        let originY = 0;
+        let meterToPx = 3.5; // Scale: 1 meter = X pixels
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            originY = canvas.height - 60;
+
+            // Draw Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            const stepPx = meterToPx * 10; // Grid line every 10 meters
+
+            for (let x = originX; x < canvas.width; x += stepPx) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, originY);
+                ctx.stroke();
+
+                const m = Math.round((x - originX) / meterToPx);
+                ctx.fillStyle = '#64748b';
+                ctx.font = '10px Segoe UI';
+                ctx.fillText(m + 'm', x - 8, originY + 20);
+            }
+
+            for (let y = originY; y > 0; y -= stepPx) {
+                ctx.beginPath();
+                ctx.moveTo(originX, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+
+                const m = Math.round((originY - y) / meterToPx);
+                if (m > 0) {
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = '10px Segoe UI';
+                    ctx.fillText(m + 'm', originX - 35, y + 4);
+                }
+            }
+
+            // Draw Ground
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, originY);
+            ctx.lineTo(canvas.width, originY);
+            ctx.stroke();
+
+            // Draw Launcher / Cannon
+            const angleRad = parseFloat(document.getElementById('angleSlider').value) * (Math.PI / 180);
+            ctx.save();
+            ctx.translate(originX, originY);
+            ctx.rotate(-angleRad);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(0, -6, 30, 12);
+            ctx.restore();
+
+            // Draw Completed Trajectories
+            trajectories.forEach(t => {
+                ctx.strokeStyle = t.color;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                t.path.forEach((pt, idx) => {
+                    const px = originX + pt.x * meterToPx;
+                    const py = originY - pt.y * meterToPx;
+                    if (idx === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw Max Height Marker
+                const maxPxX = originX + t.maxHPos.x * meterToPx;
+                const maxPxY = originY - t.maxHPos.y * meterToPx;
+                ctx.fillStyle = t.color;
+                ctx.beginPath();
+                ctx.arc(maxPxX, maxPxY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Active Flying Projectiles
+            activeProjectiles.forEach(p => {
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                p.path.forEach((pt, idx) => {
+                    const px = originX + pt.x * meterToPx;
+                    const py = originY - pt.y * meterToPx;
+                    if (idx === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+
+                // Projectile head
+                const currentPxX = originX + p.x * meterToPx;
+                const currentPxY = originY - p.y * meterToPx;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(currentPxX, currentPxY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // Physics Update Animation Loop
+        const dt = 0.016; // Time step 16ms
+        function updatePhysics() {
+            activeProjectiles.forEach((p, index) => {
+                if (p.finished) return;
+
+                // Relative velocity w.r.t wind
+                const vRelX = p.vx - p.wind;
+                const vRelY = p.vy;
+                const vRel = Math.sqrt(vRelX * vRelX + vRelY * vRelY);
+
+                // Drag forces
+                const FdragX = -0.5 * rho * p.Cd * p.area * vRel * vRelX;
+                const FdragY = -0.5 * rho * p.Cd * p.area * vRel * vRelY;
+
+                // Accelerations
+                const ax = FdragX / p.mass;
+                const ay = -g + (FdragY / p.mass);
+
+                // Update velocities
+                p.vx += ax * dt;
+                p.vy += ay * dt;
+
+                // Update positions
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.time += dt;
+
+                if (p.y > p.maxH) {
+                    p.maxH = p.y;
+                    p.maxHPos = {x: p.x, y: p.y};
+                }
+
+                p.path.push({x: p.x, y: p.y});
+
+                // Check ground impact
+                if (p.y <= 0) {
+                    p.y = 0;
+                    p.finished = true;
+                    
+                    const finalV = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                    
+                    // Update results card
+                    document.getElementById('resHmax').innerText = p.maxH.toFixed(2) + ' m';
+                    document.getElementById('resRange').innerText = p.x.toFixed(2) + ' m';
+                    document.getElementById('resTime').innerText = p.time.toFixed(2) + ' s';
+                    document.getElementById('resVfinal').innerText = finalV.toFixed(2) + ' m/s';
+
+                    trajectories.push(p);
+                    activeProjectiles.splice(index, 1);
+                }
+            });
+
+            drawScene();
+            requestAnimationFrame(updatePhysics);
+        }
+
+        // Initialize
+        resizeCanvas();
+        updateValues();
+        requestAnimationFrame(updatePhysics);
+    </script>
+</body>
+</html>
