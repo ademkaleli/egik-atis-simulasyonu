@@ -2,6 +2,9 @@
 
 Bu proje, Fizik I dersi kapsamında geliştirilmiş; eğik atış hareketini hava direnci (aerodinamik sürtünme), rüzgar faktörü ve farklı gök cisimlerinin yer çekimi ivmeleri altında simüle eden interaktif bir fizik yazılımıdır.
 
+🚀 Canlı Uygulama:
+https://ademkaleli.github.io/egik-atis-simulasyonu/
+
 ---
 
 ## 👤 Öğrenci Bilgileri
